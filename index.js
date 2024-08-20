@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, REST, Routes, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, InteractionType, ActivityType, TextChannel } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, InteractionType, ActivityType } = require('discord.js');
 require('dotenv').config();
 const express = require('express');
 
@@ -23,47 +23,20 @@ app.listen(port, () => {
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
-const statusMessages = ["Watching VEF", "Watching VEF"];
+const statusMessages = ["PLAYING", "MUSIC"];
 let currentIndex = 0;
 
-const teamRoles = {
-    '1275093298389712914': 'AC Milan',
-    '1275093298389712913': 'Ajax',
-    '1275093298389712912': 'Arsenal',
-    '1275093298389712911': 'AS Roma',
-    '1275093298389712910': 'Bayern Munich',
-    '1275093298389712909': 'Dortmund',
-    '1275093298389712908': 'FC Barcelona',
-    '1275093298389712907': 'Inter Milan',
-    '1275093298389712906': 'Manchester City',
-    '1275093298356420831': 'Real Madrid',
-    '1275093298356420830': 'Paris Saint-Germain',
-    '1275093298259951638': 'Team 16',
-    '1275093298259951639': 'Team 15',
-    '1275093298356420830': 'Team 14',
-    '1275093298259951641': 'Team 13',
-    '1275093298356420829': 'Tottenham'
-};
-
-// Function to update bot status and send messages
-function updateStatusAndSendMessages() {
+function updateStatus() {
     const currentStatus = statusMessages[currentIndex];
-    const nextStatus = statusMessages[(currentIndex + 1) % statusMessages.length];
 
     client.user.setPresence({
         activities: [{ name: currentStatus, type: ActivityType.Custom }],
         status: 'dnd',
     });
 
-    const textChannel = client.channels.cache.get(channelId);
-    if (textChannel instanceof TextChannel) {
-        textChannel.send(`Bot status is: ${currentStatus}`);
-    }
-
     currentIndex = (currentIndex + 1) % statusMessages.length;
 }
 
-// Register commands
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
 
@@ -114,8 +87,8 @@ client.once('ready', async () => {
         console.error('Error registering commands:', error);
     }
 
-    updateStatusAndSendMessages();
-    setInterval(updateStatusAndSendMessages, 10000);  // Update every 10 seconds
+    updateStatus();
+    setInterval(updateStatus, 10000);  // Update every 10 seconds
 });
 
 client.on('interactionCreate', async interaction => {
