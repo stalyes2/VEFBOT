@@ -118,7 +118,7 @@ const commands = [
 })();
 
 // Update bot status
-const statusMessages = ["PLAYING", "MUSIC"];
+const statusMessages = ["WATCHING VEF", "WATCHING VEF"];
 let currentIndex = 0;
 
 function updateStatus() {
