@@ -15,15 +15,15 @@ const client = new Client({
 const app = express();
 const port = 3000;
 app.get('/', (req, res) => {
-  res.send('Bot is running and status updated!');
+    res.send('Bot is running and status updated!');
 });
 app.listen(port, () => {
-  console.log(`Listening on http://localhost:${port}`);
+    console.log(`Listening on http://localhost:${port}`);
 });
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
-const statusMessages = ["WATCHING VEF", "WATCHING VEF"];
+const statusMessages = ["PLAYING", "MUSIC"];
 let currentIndex = 0;
 
 const teamRoles = {
@@ -55,43 +55,7 @@ client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
 
     const commands = [
-        {
-            name: 'offer',
-            description: 'Offer a contract to a user',
-            options: [
-                { name: 'user', type: 6, description: 'User to offer the contract to', required: true },
-                { name: 'role', type: 3, description: 'Role to offer', required: true },
-                { name: 'position', type: 3, description: 'Position for the contract', required: true }
-            ]
-        },
-        {
-            name: 'release',
-            description: 'Release a user from a team',
-            options: [
-                { name: 'user', type: 6, description: 'User to release', required: true }
-            ]
-        },
-        {
-            name: 'promote',
-            description: 'Promote a user to Assistant Manager',
-            options: [
-                { name: 'user', type: 6, description: 'User to promote', required: true }
-            ]
-        },
-        {
-            name: 'demote',
-            description: 'Demote a user from Assistant Manager',
-            options: [
-                { name: 'user', type: 6, description: 'User to demote', required: true }
-            ]
-        },
-        {
-            name: 'roster_view',
-            description: 'View members with a specific role',
-            options: [
-                { name: 'role', type: 8, description: 'Role to view members of', required: true }
-            ]
-        }
+        // Your command definitions here...
     ];
 
     try {
@@ -111,17 +75,26 @@ client.on('interactionCreate', async interaction => {
     const { commandName, options, member } = interaction;
 
     try {
+        // Ensure member object is available
+        if (!member) {
+            await interaction.reply({ content: 'Unable to fetch member data.', ephemeral: true });
+            return;
+        }
+
+        // Check if the member has the Manager role
         const hasManagerRole = member.roles.cache.has(process.env.MANAGER_ROLE_ID);
 
         if (commandName === 'offer') {
             if (!hasManagerRole) {
-                return interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
+                await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
+                return;
             }
 
             const teamRole = member.roles.cache.find(role => Object.keys(teamRoles).includes(role.id));
 
             if (!teamRole) {
-                return interaction.reply({ content: 'You must have a valid Team role to use this command.', ephemeral: true });
+                await interaction.reply({ content: 'You must have a valid Team role to use this command.', ephemeral: true });
+                return;
             }
 
             const user = options.getUser('user');
@@ -147,7 +120,7 @@ client.on('interactionCreate', async interaction => {
 
             const row = new ActionRowBuilder().addComponents(acceptButton);
 
-            await interaction.reply({ content: `Offering contract to ${user.tag}...`, ephemeral: true });
+            await interaction.deferReply({ ephemeral: true });
 
             try {
                 const message = await user.send({ embeds: [embed], components: [row] });
@@ -165,13 +138,16 @@ client.on('interactionCreate', async interaction => {
                         }
                     }
                 });
+
+                await interaction.editReply({ content: `Offering contract to ${user.tag}...` });
             } catch (err) {
                 console.error('Error sending contract offer:', err);
+                await interaction.editReply({ content: 'There was an error sending the contract offer.', ephemeral: true });
             }
-
         } else if (commandName === 'release') {
             if (!hasManagerRole) {
-                return interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
+                await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
+                return;
             }
 
             const user = options.getUser('user');
@@ -187,10 +163,10 @@ client.on('interactionCreate', async interaction => {
             }
 
             await interaction.reply({ content: `Released ${user.tag}.`, ephemeral: true });
-
         } else if (commandName === 'promote') {
             if (!hasManagerRole) {
-                return interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
+                await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
+                return;
             }
 
             const user = options.getUser('user');
@@ -202,10 +178,10 @@ client.on('interactionCreate', async interaction => {
             } else {
                 await interaction.reply({ content: `User ${user.tag} not found.`, ephemeral: true });
             }
-
         } else if (commandName === 'demote') {
             if (!hasManagerRole) {
-                return interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
+                await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
+                return;
             }
 
             const user = options.getUser('user');
@@ -217,30 +193,30 @@ client.on('interactionCreate', async interaction => {
             } else {
                 await interaction.reply({ content: `User ${user.tag} not found.`, ephemeral: true });
             }
-
         } else if (commandName === 'roster_view') {
             const role = options.getRole('role');
 
             if (!role) {
-                return interaction.reply({ content: 'Role not found.', ephemeral: true });
+                await interaction.reply({ content: 'Role not found.', ephemeral: true });
+                return;
             }
 
-            const membersWithRole = interaction.guild.members.cache.filter(member => member.roles.cache.has(role.id));
+            const membersWithRole = role.members.map(member => member.user.tag).join('\n') || 'No members with this role.';
 
-            if (membersWithRole.size === 0) {
-                return interaction.reply({ content: `No members found with the role ${role.name}.`, ephemeral: true });
-            }
-
-            const memberList = membersWithRole.map(member => member.user.tag).join('\n');
             const embed = new EmbedBuilder()
-                .setTitle(`Members with the role ${role.name}`)
-                .setDescription(memberList);
+                .setTitle('ROSTER VIEW')
+                .setDescription(membersWithRole)
+                .setFooter({ text: `Role ID: ${role.id}` });
 
-            await interaction.reply({ embeds: [embed] });
+            await interaction.reply({ embeds: [embed], ephemeral: true });
         }
     } catch (error) {
         console.error('Error handling interaction:', error);
-        await interaction.reply({ content: 'There was an error while executing this command.', ephemeral: true });
+        if (interaction.deferred || interaction.replied) {
+            await interaction.followUp({ content: 'There was an error while executing this command.', ephemeral: true });
+        } else {
+            await interaction.reply({ content: 'There was an error while executing this command.', ephemeral: true });
+        }
     }
 });
 
