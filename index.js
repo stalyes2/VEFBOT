@@ -23,9 +23,9 @@ app.listen(port, () => {
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
-const statusMessages = ["PLAYING", "MUSIC"];
+const statusMessages = ["Watching VEF", "Watching VEF"];
 let currentIndex = 0;
-const channelId = '';  // Add your channel ID here
+const channelId = '1264243626079293594';  // Add your channel ID here
 
 const teamRoles = {
     '1275093298389712914': 'AC Milan',
