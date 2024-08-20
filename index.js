@@ -2,6 +2,7 @@ const { Client, GatewayIntentBits, REST, Routes, EmbedBuilder, ButtonBuilder, Bu
 require('dotenv').config();
 const express = require('express');
 
+// Initialize the client
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -12,6 +13,7 @@ const client = new Client({
     ]
 });
 
+// Initialize Express app
 const app = express();
 const port = 3000;
 app.get('/', (req, res) => {
@@ -21,24 +23,103 @@ app.listen(port, () => {
     console.log(`Listening on http://localhost:${port}`);
 });
 
+// Initialize REST API for command registration
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
+// Define commands
+const commands = [
+    {
+        name: 'offer',
+        description: 'Offer a contract to a user',
+        options: [
+            {
+                type: 6, // USER
+                name: 'user',
+                description: 'User to offer the contract to',
+                required: true
+            },
+            {
+                type: 3, // STRING
+                name: 'role',
+                description: 'Role for the user',
+                required: true
+            },
+            {
+                type: 3, // STRING
+                name: 'position',
+                description: 'Position for the user',
+                required: true
+            }
+        ]
+    },
+    {
+        name: 'release',
+        description: 'Release a user from their team',
+        options: [
+            {
+                type: 6, // USER
+                name: 'user',
+                description: 'User to release',
+                required: true
+            }
+        ]
+    },
+    {
+        name: 'promote',
+        description: 'Promote a user to Assistant Manager',
+        options: [
+            {
+                type: 6, // USER
+                name: 'user',
+                description: 'User to promote',
+                required: true
+            }
+        ]
+    },
+    {
+        name: 'demote',
+        description: 'Demote a user from Assistant Manager',
+        options: [
+            {
+                type: 6, // USER
+                name: 'user',
+                description: 'User to demote',
+                required: true
+            }
+        ]
+    },
+    {
+        name: 'roster_view',
+        description: 'View roster for a specific role',
+        options: [
+            {
+                type: 8, // ROLE
+                name: 'role',
+                description: 'Role to view roster for',
+                required: true
+            }
+        ]
+    }
+];
+
+// Register commands
+(async () => {
+    try {
+        console.log('Started refreshing application (/) commands.');
+
+        await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
+            body: commands,
+        });
+
+        console.log('Successfully reloaded application (/) commands.');
+    } catch (error) {
+        console.error('Error registering commands:', error);
+    }
+})();
+
+// Update bot status
 const statusMessages = ["PLAYING", "MUSIC"];
 let currentIndex = 0;
-
-const teamRoles = {
-    '1275093298389712914': 'AC Milan',
-    '1275093298389712913': 'Ajax',
-    '1275093298389712912': 'Arsenal',
-    '1275093298389712911': 'AS Roma',
-    '1275093298389712910': 'Bayern Munich',
-    '1275093298389712909': 'Dortmund',
-    '1275093298389712908': 'FC Barcelona',
-    '1275093298389712907': 'Inter Milan',
-    '1275093298389712906': 'Manchester City',
-    '1275093298356420831': 'Real Madrid',
-    '1275093298356420830': 'Paris Saint-Germain'
-};
 
 function updateStatus() {
     const currentStatus = statusMessages[currentIndex];
@@ -51,37 +132,26 @@ function updateStatus() {
     currentIndex = (currentIndex + 1) % statusMessages.length;
 }
 
-client.once('ready', async () => {
+// Event handler when the bot is ready
+client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
 
-    const commands = [
-        // Your command definitions here...
-    ];
-
-    try {
-        await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
-        console.log('Successfully registered application commands.');
-    } catch (error) {
-        console.error('Error registering commands:', error);
-    }
-
     updateStatus();
-    setInterval(updateStatus, 10000);  // Update every 10 seconds
+    setInterval(updateStatus, 10000); // Update every 10 seconds
 });
 
+// Handle interactions
 client.on('interactionCreate', async interaction => {
     if (interaction.type !== InteractionType.ApplicationCommand) return;
 
     const { commandName, options, member } = interaction;
 
     try {
-        // Ensure member object is available
         if (!member) {
             await interaction.reply({ content: 'Unable to fetch member data.', ephemeral: true });
             return;
         }
 
-        // Check if the member has the Manager role
         const hasManagerRole = member.roles.cache.has(process.env.MANAGER_ROLE_ID);
 
         if (commandName === 'offer') {
@@ -220,4 +290,5 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
+// Login to Discord
 client.login(process.env.BOT_TOKEN);
