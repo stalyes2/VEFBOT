@@ -23,8 +23,22 @@ app.listen(port, () => {
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
-const statusMessages = ["PLAYING", "MUSIC"];
+const statusMessages = ["WATCHING VEF", "WATCHING VEF"];
 let currentIndex = 0;
+
+const teamRoles = {
+    '1275093298389712914': 'AC Milan',
+    '1275093298389712913': 'Ajax',
+    '1275093298389712912': 'Arsenal',
+    '1275093298389712911': 'AS Roma',
+    '1275093298389712910': 'Bayern Munich',
+    '1275093298389712909': 'Dortmund',
+    '1275093298389712908': 'FC Barcelona',
+    '1275093298389712907': 'Inter Milan',
+    '1275093298389712906': 'Manchester City',
+    '1275093298356420831': 'Real Madrid',
+    '1275093298356420830': 'Paris Saint-Germain'
+};
 
 function updateStatus() {
     const currentStatus = statusMessages[currentIndex];
