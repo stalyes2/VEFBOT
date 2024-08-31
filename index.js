@@ -1,4 +1,15 @@
-const { Client, GatewayIntentBits, REST, Routes, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, InteractionType, ActivityType } = require('discord.js');
+const { 
+    Client, 
+    GatewayIntentBits, 
+    REST, 
+    Routes, 
+    EmbedBuilder, 
+    ButtonBuilder, 
+    ButtonStyle, 
+    ActionRowBuilder, 
+    InteractionType, 
+    ActivityType 
+} = require('discord.js');
 require('dotenv').config();
 const express = require('express');
 
@@ -37,7 +48,7 @@ const teamRoles = {
     '1275093298389712908': 'FC Barcelona',
     '1275093298389712907': 'Inter Milan',
     '1275093298389712906': 'Manchester City',
-    '1275093298356420831': 'Real Madrid',
+    '1264252664959602699': 'Real Madrid',
     '1275093298356420830': 'Paris Saint-Germain'
 };
 
@@ -54,7 +65,7 @@ const commands = [
     },
     {
         name: 'release',
-        description: 'Release a user from a team',
+        description: 'Release a user from their team',
         options: [
             { name: 'user', type: 6, description: 'User to release', required: true }
         ]
@@ -103,7 +114,7 @@ function updateStatus() {
     const currentStatus = statusMessages[currentIndex];
 
     client.user.setPresence({
-        activities: [{ name: currentStatus, type: ActivityType.Custom }],
+        activities: [{ name: currentStatus, type: ActivityType.Watching }],
         status: 'dnd',
     });
 
@@ -150,16 +161,22 @@ client.on('interactionCreate', async interaction => {
             const position = options.getString('position');
             const contractId = Math.floor(Math.random() * 1000000).toString();
 
+            // ======= Updated Embed Design Starts Here =======
             const embed = new EmbedBuilder()
-                .setTitle('CONTRACT OFFER')
+                .setColor(teamRole.color) // Set the color to the role's color
+                .setTitle('Contract Offer')
                 .addFields(
-                    { name: 'Team', value: teamRoles[teamRole.id] },
-                    { name: 'Contractor', value: member.user.tag },
-                    { name: 'Signee', value: user.tag },
-                    { name: 'Role', value: role },
-                    { name: 'Position', value: position },
-                    { name: 'Contract ID', value: contractId }
-                );
+                    { name: 'Team', value: teamRoles[teamRole.id], inline: true },
+                    { name: 'Contractor', value: member.user.tag, inline: true },
+                    { name: 'Signee', value: user.tag, inline: true },
+                    { name: 'Role', value: role, inline: true },
+                    { name: 'Position', value: position, inline: true },
+                    { name: 'Contract ID', value: contractId, inline: true },
+                    { name: 'Roster Size', value: `${teamRole.members.size}`, inline: true } // Roster size based on the signee's team role
+                )
+                .setFooter({ text: 'Contract System' })
+                .setTimestamp();
+            // ======= Updated Embed Design Ends Here =======
 
             const acceptButton = new ButtonBuilder()
                 .setCustomId('accept_contract')
@@ -178,7 +195,7 @@ client.on('interactionCreate', async interaction => {
 
                 collector.on('collect', async i => {
                     if (i.customId === 'accept_contract') {
-                        await i.update({ content: 'Contract accepted.', embeds: [embed], components: [] });
+                        await i.update({ content: '✅ Contract accepted!', embeds: [embed], components: [] });
 
                         const channel = client.channels.cache.get(process.env.CONTRACT_CHANNEL_ID);
                         if (channel) {
@@ -186,10 +203,12 @@ client.on('interactionCreate', async interaction => {
                         }
                     }
                 });
+
+                await interaction.editReply({ content: `Contract offer sent to ${user.tag}.`, ephemeral: true });
             } catch (err) {
                 console.error('Error sending contract offer:', err);
+                await interaction.editReply({ content: 'There was an error sending the contract offer.', ephemeral: true });
             }
-
         } else if (commandName === 'release') {
             if (!hasManagerRole) {
                 await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
@@ -199,9 +218,13 @@ client.on('interactionCreate', async interaction => {
             const user = options.getUser('user');
 
             const embed = new EmbedBuilder()
-                .setTitle('RELEASED')
+                .setTitle('Release Notification')
                 .setDescription(`${user.tag} has been released from their team.`)
-                .addField('Manager', member.user.tag);
+                .addFields(
+                    { name: 'Manager', value: member.user.tag, inline: true }
+                )
+                .setColor('#ff0000') // Red color for release
+                .setTimestamp();
 
             const channel = client.channels.cache.get(process.env.RELEASE_CHANNEL_ID);
             if (channel) {
@@ -209,7 +232,6 @@ client.on('interactionCreate', async interaction => {
             }
 
             await interaction.reply({ content: `Released ${user.tag}.`, ephemeral: true });
-
         } else if (commandName === 'promote') {
             if (!hasManagerRole) {
                 await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
@@ -225,7 +247,6 @@ client.on('interactionCreate', async interaction => {
             } else {
                 await interaction.reply({ content: `User ${user.tag} not found.`, ephemeral: true });
             }
-
         } else if (commandName === 'demote') {
             if (!hasManagerRole) {
                 await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
@@ -233,35 +254,53 @@ client.on('interactionCreate', async interaction => {
             }
 
             const user = options.getUser('user');
-            const memberToDemote = await interaction.guild.members.fetch(user.id);
+            const member = interaction.guild.members.cache.get(user.id);
+            const role = interaction.guild.roles.cache.get(process.env.ASSISTANT_MANAGER_ROLE_ID);
 
-            if (memberToDemote) {
-                await memberToDemote.roles.remove(process.env.ASSISTANT_MANAGER_ROLE_ID);
+            if (member && role) {
+                await member.roles.remove(role);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🔻 Demotion Notification')
+                    .setDescription(`${user.tag} has been demoted from Assistant Manager.`)
+                    .addFields(
+                        { name: 'Demoted By', value: member.user.tag, inline: true }
+                    )
+                    .setColor('#ffff00') // Yellow color for demotion
+                    .setTimestamp();
+
+                const channel = client.channels.cache.get(process.env.DEMOTION_CHANNEL_ID);
+                if (channel) {
+                    await channel.send({ embeds: [embed] });
+                }
+
                 await interaction.reply({ content: `Demoted ${user.tag} from Assistant Manager.`, ephemeral: true });
             } else {
-                await interaction.reply({ content: `User ${user.tag} not found.`, ephemeral: true });
+                await interaction.reply({ content: 'Unable to find the user or role.', ephemeral: true });
             }
-
         } else if (commandName === 'roster_view') {
             const role = options.getRole('role');
 
-            if (!role) {
-                return interaction.reply({ content: 'The specified role does not exist.', ephemeral: true });
-            }
-
-            const membersWithRole = role.members.map(member => member.nickname || member.user.tag).join('\n') || 'No members with this role.';
-
             const embed = new EmbedBuilder()
-                .setTitle(`Members with the ${role.name} role`)
-                .setDescription(membersWithRole);
+                .setTitle('📋 Roster View')
+                .setDescription(`Viewing roster for role: ${role.name}`)
+                .setColor(role.color) // Set the color to the role's color
+                .setTimestamp();
+
+            const members = role.members.map(member => member.user.tag).join('\n') || 'No members';
+
+            embed.addFields({ name: 'Members', value: members });
 
             await interaction.reply({ embeds: [embed], ephemeral: true });
         }
-    } catch (err) {
-        console.error('Error handling command interaction:', err);
-        await interaction.reply({ content: 'An error occurred while processing your request.', ephemeral: true });
+    } catch (error) {
+        console.error('Error handling interaction:', error);
+        if (interaction.deferred || interaction.replied) {
+            await interaction.followUp({ content: 'There was an error while executing this command.', ephemeral: true });
+        } else {
+            await interaction.reply({ content: 'There was an error while executing this command.', ephemeral: true });
+        }
     }
 });
 
-// Login to Discord with the bot's token
 client.login(process.env.BOT_TOKEN);
