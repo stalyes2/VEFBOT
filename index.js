@@ -161,10 +161,15 @@ client.on('interactionCreate', async interaction => {
             const position = options.getString('position');
             const contractId = Math.floor(Math.random() * 1000000).toString();
 
+            // Fetch the role by ID
+            const roleToSign = interaction.guild.roles.cache.get(role);
+            const rosterSize = roleToSign ? roleToSign.members.size : 0;
+
             // ======= Updated Embed Design Starts Here =======
             const embed = new EmbedBuilder()
-                .setColor(teamRole.color) // Set the color to the role's color
-                .setTitle('Contract Offer')
+                .setColor(roleToSign ? roleToSign.color : '#0099ff') // Set the embed color to match the role color
+                .setTitle(`[VEF] Contract Offer`)
+                .setThumbnail('https://imgur.com/OmEfAXo') // Replace with your team logo URL
                 .addFields(
                     { name: 'Team', value: teamRoles[teamRole.id], inline: true },
                     { name: 'Contractor', value: member.user.tag, inline: true },
@@ -172,9 +177,11 @@ client.on('interactionCreate', async interaction => {
                     { name: 'Role', value: role, inline: true },
                     { name: 'Position', value: position, inline: true },
                     { name: 'Contract ID', value: contractId, inline: true },
-                    { name: 'Roster Size', value: `${teamRole.members.size}`, inline: true } // Roster size based on the signee's team role
+                    { name: '\u200B', value: '\u200B' }, // Empty field for spacing
+                    { name: 'Coach', value: `<@${interaction.user.id}>`, inline: true },
+                    { name: 'Roster Size', value: rosterSize.toString(), inline: true } // Updated roster size
                 )
-                .setFooter({ text: 'Contract System' })
+                .setFooter({ text: 'Contract System', iconURL: 'https://imgur.com/OmEfAXo' }) // Replace with your logo URL
                 .setTimestamp();
             // ======= Updated Embed Design Ends Here =======
 
@@ -218,7 +225,7 @@ client.on('interactionCreate', async interaction => {
             const user = options.getUser('user');
 
             const embed = new EmbedBuilder()
-                .setTitle('Release Notification')
+                .setTitle('🔓 Release Notification')
                 .setDescription(`${user.tag} has been released from their team.`)
                 .addFields(
                     { name: 'Manager', value: member.user.tag, inline: true }
@@ -239,13 +246,29 @@ client.on('interactionCreate', async interaction => {
             }
 
             const user = options.getUser('user');
-            const memberToPromote = await interaction.guild.members.fetch(user.id);
+            const member = interaction.guild.members.cache.get(user.id);
+            const role = interaction.guild.roles.cache.get(process.env.ASSISTANT_MANAGER_ROLE_ID);
 
-            if (memberToPromote) {
-                await memberToPromote.roles.add(process.env.ASSISTANT_MANAGER_ROLE_ID);
+            if (member && role) {
+                await member.roles.add(role);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🎉 Promotion Notification')
+                    .setDescription(`${user.tag} has been promoted to Assistant Manager.`)
+                    .addFields(
+                        { name: 'Promoted By', value: member.user.tag, inline: true }
+                    )
+                    .setColor('#00ff00') // Green color for promotion
+                    .setTimestamp();
+
+                const channel = client.channels.cache.get(process.env.PROMOTION_CHANNEL_ID);
+                if (channel) {
+                    await channel.send({ embeds: [embed] });
+                }
+
                 await interaction.reply({ content: `Promoted ${user.tag} to Assistant Manager.`, ephemeral: true });
             } else {
-                await interaction.reply({ content: `User ${user.tag} not found.`, ephemeral: true });
+                await interaction.reply({ content: 'Unable to find the user or role.', ephemeral: true });
             }
         } else if (commandName === 'demote') {
             if (!hasManagerRole) {
