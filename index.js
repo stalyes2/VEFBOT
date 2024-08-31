@@ -26,78 +26,58 @@ app.listen(port, () => {
 // Initialize REST API for command registration
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
+// Define team roles
+const teamRoles = {
+    '1275093298389712914': 'AC Milan',
+    '1275093298389712913': 'Ajax',
+    '1275093298389712912': 'Arsenal',
+    '1275093298389712911': 'AS Roma',
+    '1275093298389712910': 'Bayern Munich',
+    '1275093298389712909': 'Dortmund',
+    '1275093298389712908': 'FC Barcelona',
+    '1275093298389712907': 'Inter Milan',
+    '1275093298389712906': 'Manchester City',
+    '1275093298356420831': 'Real Madrid',
+    '1275093298356420830': 'Paris Saint-Germain'
+};
+
 // Define commands
 const commands = [
     {
         name: 'offer',
         description: 'Offer a contract to a user',
         options: [
-            {
-                type: 6, // USER
-                name: 'user',
-                description: 'User to offer the contract to',
-                required: true
-            },
-            {
-                type: 3, // STRING
-                name: 'role',
-                description: 'Role for the user',
-                required: true
-            },
-            {
-                type: 3, // STRING
-                name: 'position',
-                description: 'Position for the user',
-                required: true
-            }
+            { name: 'user', type: 6, description: 'User to offer the contract to', required: true },
+            { name: 'role', type: 3, description: 'Role to offer', required: true },
+            { name: 'position', type: 3, description: 'Position for the contract', required: true }
         ]
     },
     {
         name: 'release',
-        description: 'Release a user from their team',
+        description: 'Release a user from a team',
         options: [
-            {
-                type: 6, // USER
-                name: 'user',
-                description: 'User to release',
-                required: true
-            }
+            { name: 'user', type: 6, description: 'User to release', required: true }
         ]
     },
     {
         name: 'promote',
         description: 'Promote a user to Assistant Manager',
         options: [
-            {
-                type: 6, // USER
-                name: 'user',
-                description: 'User to promote',
-                required: true
-            }
+            { name: 'user', type: 6, description: 'User to promote', required: true }
         ]
     },
     {
         name: 'demote',
         description: 'Demote a user from Assistant Manager',
         options: [
-            {
-                type: 6, // USER
-                name: 'user',
-                description: 'User to demote',
-                required: true
-            }
+            { name: 'user', type: 6, description: 'User to demote', required: true }
         ]
     },
     {
         name: 'roster_view',
         description: 'View roster for a specific role',
         options: [
-            {
-                type: 8, // ROLE
-                name: 'role',
-                description: 'Role to view roster for',
-                required: true
-            }
+            { name: 'role', type: 8, description: 'Role to view roster for', required: true }
         ]
     }
 ];
@@ -107,9 +87,7 @@ const commands = [
     try {
         console.log('Started refreshing application (/) commands.');
 
-        await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
-            body: commands,
-        });
+        await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
 
         console.log('Successfully reloaded application (/) commands.');
     } catch (error) {
@@ -208,12 +186,10 @@ client.on('interactionCreate', async interaction => {
                         }
                     }
                 });
-
-                await interaction.editReply({ content: `Offering contract to ${user.tag}...` });
             } catch (err) {
                 console.error('Error sending contract offer:', err);
-                await interaction.editReply({ content: 'There was an error sending the contract offer.', ephemeral: true });
             }
+
         } else if (commandName === 'release') {
             if (!hasManagerRole) {
                 await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
@@ -225,7 +201,7 @@ client.on('interactionCreate', async interaction => {
             const embed = new EmbedBuilder()
                 .setTitle('RELEASED')
                 .setDescription(`${user.tag} has been released from their team.`)
-                .addFields({ name: 'Manager', value: member.user.tag });
+                .addField('Manager', member.user.tag);
 
             const channel = client.channels.cache.get(process.env.RELEASE_CHANNEL_ID);
             if (channel) {
@@ -233,6 +209,7 @@ client.on('interactionCreate', async interaction => {
             }
 
             await interaction.reply({ content: `Released ${user.tag}.`, ephemeral: true });
+
         } else if (commandName === 'promote') {
             if (!hasManagerRole) {
                 await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
@@ -248,6 +225,7 @@ client.on('interactionCreate', async interaction => {
             } else {
                 await interaction.reply({ content: `User ${user.tag} not found.`, ephemeral: true });
             }
+
         } else if (commandName === 'demote') {
             if (!hasManagerRole) {
                 await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
@@ -263,32 +241,27 @@ client.on('interactionCreate', async interaction => {
             } else {
                 await interaction.reply({ content: `User ${user.tag} not found.`, ephemeral: true });
             }
+
         } else if (commandName === 'roster_view') {
             const role = options.getRole('role');
 
             if (!role) {
-                await interaction.reply({ content: 'Role not found.', ephemeral: true });
-                return;
+                return interaction.reply({ content: 'The specified role does not exist.', ephemeral: true });
             }
 
-            const membersWithRole = role.members.map(member => member.user.tag).join('\n') || 'No members with this role.';
+            const membersWithRole = role.members.map(member => member.nickname || member.user.tag).join('\n') || 'No members with this role.';
 
             const embed = new EmbedBuilder()
-                .setTitle('ROSTER VIEW')
-                .setDescription(membersWithRole)
-                .setFooter({ text: `Role ID: ${role.id}` });
+                .setTitle(`Members with the ${role.name} role`)
+                .setDescription(membersWithRole);
 
             await interaction.reply({ embeds: [embed], ephemeral: true });
         }
-    } catch (error) {
-        console.error('Error handling interaction:', error);
-        if (interaction.deferred || interaction.replied) {
-            await interaction.followUp({ content: 'There was an error while executing this command.', ephemeral: true });
-        } else {
-            await interaction.reply({ content: 'There was an error while executing this command.', ephemeral: true });
-        }
+    } catch (err) {
+        console.error('Error handling command interaction:', err);
+        await interaction.reply({ content: 'An error occurred while processing your request.', ephemeral: true });
     }
 });
 
-// Login to Discord
+// Login to Discord with the bot's token
 client.login(process.env.BOT_TOKEN);
