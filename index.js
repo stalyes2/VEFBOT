@@ -90,6 +90,13 @@ const commands = [
         options: [
             { name: 'role', type: 8, description: 'Role to view roster for', required: true }
         ]
+    },
+    {
+        name: 'say',
+        description: 'Make the bot say something in the channel',
+        options: [
+            { name: 'text', type: 3, description: 'Text to say', required: true }
+        ]
     }
 ];
 
@@ -223,22 +230,27 @@ client.on('interactionCreate', async interaction => {
             }
 
             const user = options.getUser('user');
+            const member = interaction.guild.members.cache.get(user.id);
+            const teamRole = member.roles.cache.find(role => Object.keys(teamRoles).includes(role.id));
 
-            const embed = new EmbedBuilder()
-                .setTitle('🔓 Release Notification')
-                .setDescription(`${user.tag} has been released from their team.`)
-                .addFields(
-                    { name: 'Manager', value: member.user.tag, inline: true }
-                )
-                .setColor('#ff0000') // Red color for release
-                .setTimestamp();
+            if (teamRole) {
+                await member.roles.remove(teamRole);
+                const embed = new EmbedBuilder()
+                    .setTitle('🔓 Player Released')
+                    .setColor('#ff0000')
+                    .addField('Player:', user.tag)
+                    .setFooter({ text: 'Contract System' });
 
-            const channel = client.channels.cache.get(process.env.RELEASE_CHANNEL_ID);
-            if (channel) {
-                await channel.send({ embeds: [embed] });
+                const channel = client.channels.cache.get(process.env.RELEASE_CHANNEL_ID);
+                if (channel) {
+                    await channel.send({ embeds: [embed] });
+                }
+            } else {
+                await interaction.reply({ content: 'User does not have a TEAM role.', ephemeral: true });
+                return;
             }
 
-            await interaction.reply({ content: `Released ${user.tag}.`, ephemeral: true });
+            await interaction.reply({ content: `Player ${user.tag} has been released.`, ephemeral: true });
         } else if (commandName === 'promote') {
             if (!hasManagerRole) {
                 await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
@@ -253,20 +265,17 @@ client.on('interactionCreate', async interaction => {
                 await member.roles.add(role);
 
                 const embed = new EmbedBuilder()
-                    .setTitle('🎉 Promotion Notification')
-                    .setDescription(`${user.tag} has been promoted to Assistant Manager.`)
-                    .addFields(
-                        { name: 'Promoted By', value: member.user.tag, inline: true }
-                    )
-                    .setColor('#00ff00') // Green color for promotion
-                    .setTimestamp();
+                    .setTitle('🌟 Player Promoted')
+                    .setColor('#00ff00')
+                    .addField('Player:', user.tag)
+                    .setFooter({ text: 'Contract System' });
 
-                const channel = client.channels.cache.get(process.env.PROMOTION_CHANNEL_ID);
+                const channel = client.channels.cache.get(process.env.PROMOTE_CHANNEL_ID);
                 if (channel) {
                     await channel.send({ embeds: [embed] });
                 }
 
-                await interaction.reply({ content: `Promoted ${user.tag} to Assistant Manager.`, ephemeral: true });
+                await interaction.reply({ content: `Player ${user.tag} has been promoted.`, ephemeral: true });
             } else {
                 await interaction.reply({ content: 'Unable to find the user or role.', ephemeral: true });
             }
@@ -278,52 +287,51 @@ client.on('interactionCreate', async interaction => {
 
             const user = options.getUser('user');
             const member = interaction.guild.members.cache.get(user.id);
-            const role = interaction.guild.roles.cache.get(process.env.ASSISTANT_MANAGER_ROLE_ID);
+            const roleToRemove = interaction.guild.roles.cache.get(process.env.DEMOTE_ROLE_ID); // Replace with the specific role ID you want to remove
 
-            if (member && role) {
-                await member.roles.remove(role);
+            if (member && roleToRemove) {
+                await member.roles.remove(roleToRemove);
 
                 const embed = new EmbedBuilder()
-                    .setTitle('🔻 Demotion Notification')
-                    .setDescription(`${user.tag} has been demoted from Assistant Manager.`)
-                    .addFields(
-                        { name: 'Demoted By', value: member.user.tag, inline: true }
-                    )
-                    .setColor('#ffff00') // Yellow color for demotion
-                    .setTimestamp();
+                    .setTitle('🔻 Player Demoted')
+                    .setColor('#ffff00')
+                    .addField('Player:', user.tag)
+                    .setFooter({ text: 'Contract System' });
 
-                const channel = client.channels.cache.get(process.env.DEMOTION_CHANNEL_ID);
+                const channel = client.channels.cache.get(process.env.DEMOTE_CHANNEL_ID);
                 if (channel) {
                     await channel.send({ embeds: [embed] });
                 }
 
-                await interaction.reply({ content: `Demoted ${user.tag} from Assistant Manager.`, ephemeral: true });
+                await interaction.reply({ content: `Player ${user.tag} has been demoted.`, ephemeral: true });
             } else {
                 await interaction.reply({ content: 'Unable to find the user or role.', ephemeral: true });
             }
         } else if (commandName === 'roster_view') {
             const role = options.getRole('role');
+            const members = role.members.map(member => `<@${member.id}>`).join('\n') || 'No members found.';
 
             const embed = new EmbedBuilder()
-                .setTitle('📋 Roster View')
-                .setDescription(`Viewing roster for role: ${role.name}`)
-                .setColor(role.color) // Set the color to the role's color
-                .setTimestamp();
-
-            const members = role.members.map(member => member.user.tag).join('\n') || 'No members';
-
-            embed.addFields({ name: 'Members', value: members });
+                .setTitle(`Roster for ${role.name}`)
+                .setDescription(members)
+                .setColor(role.color)
+                .setFooter({ text: 'Roster System' });
 
             await interaction.reply({ embeds: [embed], ephemeral: true });
+        } else if (commandName === 'say') {
+            if (!member.permissions.has('ADMINISTRATOR')) {
+                await interaction.reply({ content: 'You must have admin permissions to use this command.', ephemeral: true });
+                return;
+            }
+
+            const text = options.getString('text');
+            await interaction.reply({ content: text });
         }
     } catch (error) {
         console.error('Error handling interaction:', error);
-        if (interaction.deferred || interaction.replied) {
-            await interaction.followUp({ content: 'There was an error while executing this command.', ephemeral: true });
-        } else {
-            await interaction.reply({ content: 'There was an error while executing this command.', ephemeral: true });
-        }
+        await interaction.reply({ content: 'There was an error processing your command.', ephemeral: true });
     }
 });
 
+// Login to Discord
 client.login(process.env.BOT_TOKEN);
