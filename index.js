@@ -39,17 +39,22 @@ const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
 // Define team roles
 const teamRoles = {
-    '1275093298389712914': 'AC Milan',
-    '1275093298389712913': 'Ajax',
-    '1275093298389712912': 'Arsenal',
-    '1275093298389712911': 'AS Roma',
-    '1275093298389712910': 'Bayern Munich',
-    '1275093298389712909': 'Dortmund',
-    '1275093298389712908': 'FC Barcelona',
-    '1275093298389712907': 'Inter Milan',
-    '1275093298389712906': 'Manchester City',
-    '1264252664959602699': 'Real Madrid',
-    '1275093298356420830': 'Paris Saint-Germain'
+    '1264252659376849060': 'AC Milan',
+    '1264242077768880238': 'Atalanta',
+    '1264252671767089193': 'Arsenal',
+    '1264253762063564830': 'AS Roma',
+    '1264244562290020434': 'Brighton',
+    '1264252662271180974': 'Fiorentina',
+    '1264252664959602699': 'Chelsea',
+    '1264252976759836714': 'Inter Milan',
+    '1264252674581332010': 'Manchester City',
+    '1264252443118534710': 'Manchester United',
+    '1264252653177671793': 'Liverpool',
+    '1275090669085655071': 'Napoli',
+    '1275090673309061141': 'Bolonga',
+    '1275090659870638141': 'Juventus',
+    '1264252668449132635': 'Tottenham',
+    '1279921859340533864': 'Newcastle'
 };
 
 // Define commands
