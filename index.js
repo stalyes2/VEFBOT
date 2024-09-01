@@ -309,7 +309,12 @@ client.on('interactionCreate', async interaction => {
             }
         } else if (commandName === 'roster_view') {
             const role = options.getRole('role');
-            const members = role.members.map(member => `<@${member.id}>`).join('\n') || 'No members found.';
+            if (!role) {
+                await interaction.reply({ content: 'Role not found.', ephemeral: true });
+                return;
+            }
+
+            const members = role.members.map(member => member.nickname ? `<@${member.id}> (${member.nickname})` : `<@${member.id}>`).join('\n') || 'No members found.';
 
             const embed = new EmbedBuilder()
                 .setTitle(`Roster for ${role.name}`)
