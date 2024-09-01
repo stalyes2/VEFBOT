@@ -176,7 +176,7 @@ client.on('interactionCreate', async interaction => {
             const embed = new EmbedBuilder()
                 .setColor(roleToSign ? roleToSign.color : '#0099ff') // Set the embed color to match the role color
                 .setTitle(`[VEF] Contract Offer`)
-                .setThumbnail('https://imgur.com/OmEfAXo') // Replace with your team logo URL
+                .setThumbnail('https://i.imgur.com/0tZwpyf.png') // Replace with your team logo URL
                 .addFields(
                     { name: 'Team', value: teamRoles[teamRole.id], inline: true },
                     { name: 'Contractor', value: member.user.tag, inline: true },
@@ -188,7 +188,7 @@ client.on('interactionCreate', async interaction => {
                     { name: 'Coach', value: `<@${interaction.user.id}>`, inline: true },
                     { name: 'Roster Size', value: rosterSize.toString(), inline: true } // Updated roster size
                 )
-                .setFooter({ text: 'Contract System', iconURL: 'https://imgur.com/OmEfAXo' }) // Replace with your logo URL
+                .setFooter({ text: 'Contract System', iconURL: 'https://i.imgur.com/0tZwpyf.png' }) // Replace with your logo URL
                 .setTimestamp();
             // ======= Updated Embed Design Ends Here =======
 
