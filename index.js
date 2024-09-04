@@ -165,7 +165,7 @@ client.on('interactionCreate', async interaction => {
             }
 
             // Check for a valid team role
-            const teamRole = member.roles.cache.find(role => role.id in process.env.TEAM_ROLES);
+            const teamRole = member.roles.cache.find(role => Object.keys(process.env.TEAM_ROLES).includes(role.id));
             if (!teamRole) {
                 await interaction.reply({ content: 'You must have a valid Team role to use this command.', ephemeral: true });
                 return;
@@ -177,10 +177,17 @@ client.on('interactionCreate', async interaction => {
             const contractId = Math.floor(Math.random() * 1000000).toString();
 
             const roleToSign = interaction.guild.roles.cache.get(roleId);
-            const rosterSize = roleToSign ? roleToSign.members.size : 0;
+
+            // Check if the role exists in the guild
+            if (!roleToSign) {
+                await interaction.reply({ content: 'Invalid role ID.', ephemeral: true });
+                return;
+            }
+
+            const rosterSize = roleToSign.members.size;
 
             const embed = new EmbedBuilder()
-                .setColor(roleToSign ? roleToSign.color : '#0099ff')
+                .setColor(roleToSign.color || '#0099ff')
                 .setTitle(`[VEF] Contract Offer`)
                 .setThumbnail('https://i.imgur.com/0tZwpyf.png') // Replace with your team logo URL
                 .addFields(
@@ -238,34 +245,6 @@ client.on('interactionCreate', async interaction => {
             } catch (err) {
                 console.error('Error sending contract offer:', err);
                 await interaction.editReply({ content: 'There was an error sending the contract offer.', ephemeral: true });
-            }
-        } else if (commandName === 'promote') {
-            if (!hasManagerRole) {
-                await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
-                return;
-            }
-
-            const user = options.getUser('user');
-            const member = interaction.guild.members.cache.get(user.id);
-            const role = interaction.guild.roles.cache.get(process.env.ASSISTANT_MANAGER_ROLE_ID);
-
-            if (member && role) {
-                await member.roles.add(role);
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🌟 Player Promoted')
-                    .setColor('#00ff00')
-                    .addField('Player:', user.tag)
-                    .setFooter({ text: 'Contract System' });
-
-                const channel = client.channels.cache.get(process.env.PROMOTE_CHANNEL_ID);
-                if (channel) {
-                    await channel.send({ embeds: [embed] });
-                }
-
-                await interaction.reply({ content: `Player ${user.tag} has been promoted.`, ephemeral: true });
-            } else {
-                await interaction.reply({ content: 'Unable to find the user or role.', ephemeral: true });
             }
         } else if (commandName === 'demote') {
             if (!hasManagerRole) {
