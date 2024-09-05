@@ -236,22 +236,10 @@ client.on('interactionCreate', async interaction => {
 
             if (teamRole) {
                 await member.roles.remove(teamRole);
-                const embed = new EmbedBuilder()
-                    .setTitle('🔓 Player Released')
-                    .setColor('#ff0000')
-                    .addField('Player:', user.tag)
-                    .setFooter({ text: 'Contract System' });
-
-                const channel = client.channels.cache.get(process.env.RELEASE_CHANNEL_ID);
-                if (channel) {
-                    await channel.send({ embeds: [embed] });
-                }
+                await interaction.reply({ content: `${user.tag} has been released from their team.` });
             } else {
-                await interaction.reply({ content: 'User does not have a TEAM role.', ephemeral: true });
-                return;
+                await interaction.reply({ content: `${user.tag} does not have a team role.` });
             }
-
-            await interaction.reply({ content: `Player ${user.tag} has been released.`, ephemeral: true });
         } else if (commandName === 'promote') {
             if (!hasManagerRole) {
                 await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
@@ -260,25 +248,12 @@ client.on('interactionCreate', async interaction => {
 
             const user = options.getUser('user');
             const member = interaction.guild.members.cache.get(user.id);
-            const role = interaction.guild.roles.cache.get(process.env.ASSISTANT_MANAGER_ROLE_ID);
 
-            if (member && role) {
-                await member.roles.add(role);
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🌟 Player Promoted')
-                    .setColor('#00ff00')
-                    .addField('Player:', user.tag)
-                    .setFooter({ text: 'Contract System' });
-
-                const channel = client.channels.cache.get(process.env.PROMOTE_CHANNEL_ID);
-                if (channel) {
-                    await channel.send({ embeds: [embed] });
-                }
-
-                await interaction.reply({ content: `Player ${user.tag} has been promoted.`, ephemeral: true });
+            if (member) {
+                await member.roles.add(process.env.ASSISTANT_MANAGER_ROLE_ID);
+                await interaction.reply({ content: `${user.tag} has been promoted to Assistant Manager.` });
             } else {
-                await interaction.reply({ content: 'Unable to find the user or role.', ephemeral: true });
+                await interaction.reply({ content: 'User not found.' });
             }
         } else if (commandName === 'demote') {
             if (!hasManagerRole) {
@@ -288,99 +263,84 @@ client.on('interactionCreate', async interaction => {
 
             const user = options.getUser('user');
             const member = interaction.guild.members.cache.get(user.id);
-            const roleToRemove = interaction.guild.roles.cache.get(process.env.DEMOTE_ROLE_ID); // Replace with the specific role ID you want to remove
 
-            if (member && roleToRemove) {
-                await member.roles.remove(roleToRemove);
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🔻 Player Demoted')
-                    .setColor('#ffff00')
-                    .addField('Player:', user.tag)
-                    .setFooter({ text: 'Contract System' });
-
-                const channel = client.channels.cache.get(process.env.DEMOTE_CHANNEL_ID);
-                if (channel) {
-                    await channel.send({ embeds: [embed] });
-                }
-
-                await interaction.reply({ content: `Player ${user.tag} has been demoted.`, ephemeral: true });
+            if (member) {
+                await member.roles.remove(process.env.ASSISTANT_MANAGER_ROLE_ID);
+                await interaction.reply({ content: `${user.tag} has been demoted from Assistant Manager.` });
             } else {
-                await interaction.reply({ content: 'Unable to find the user or role.', ephemeral: true });
+                await interaction.reply({ content: 'User not found.' });
             }
         } else if (commandName === 'roster_view') {
-            const role = options.getRole('role');
-            if (!role) {
-                await interaction.reply({ content: 'Role not found.', ephemeral: true });
-                return;
+            const roleId = options.getRole('role').id;
+            const role = interaction.guild.roles.cache.get(roleId);
+
+            if (role) {
+                const members = role.members.map(member => member.user.tag).join('\n');
+                const embed = new EmbedBuilder()
+                    .setTitle(`Roster for ${role.name}`)
+                    .setDescription(members || 'No members found')
+                    .setColor(role.color || '#0099ff')
+                    .setFooter({ text: 'Roster System', iconURL: 'https://i.imgur.com/0tZwpyf.png' })
+                    .setTimestamp();
+
+                await interaction.reply({ embeds: [embed] });
+            } else {
+                await interaction.reply({ content: 'Role not found.' });
             }
-
-            const members = role.members.map(member => member.nickname ? `<@${member.id}> (${member.nickname})` : `<@${member.id}>`).join('\n') || 'No members found.';
-
-            const embed = new EmbedBuilder()
-                .setTitle(`Roster for ${role.name}`)
-                .setDescription(members)
-                .setColor(role.color)
-                .setFooter({ text: 'Roster System' });
-
-            await interaction.reply({ embeds: [embed], ephemeral: true });
         } else if (commandName === 'say') {
-            if (!member.permissions.has('ADMINISTRATOR')) {
-                await interaction.reply({ content: 'You must have admin permissions to use this command.', ephemeral: true });
+            if (!interaction.member.permissions.has('ADMINISTRATOR')) {
+                await interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
                 return;
             }
 
             const text = options.getString('text');
             await interaction.reply({ content: text });
         }
-    } catch (error) {
-        console.error('Error handling interaction:', error);
-        await interaction.reply({ content: 'There was an error processing your command.', ephemeral: true });
+    } catch (err) {
+        console.error('Error handling interaction:', err);
+        await interaction.reply({ content: 'An error occurred while processing your command.', ephemeral: true });
     }
 });
 
-// Handle message component interactions
+// Handle button interactions
 client.on('interactionCreate', async interaction => {
-    if (interaction.type === InteractionType.MessageComponent) {
-        const [action, contractId] = interaction.customId.split('_');
+    if (!interaction.isButton()) return;
 
-        if (action === 'accept_contract') {
-            const contract = contracts.get(contractId);
+    const { customId, user } = interaction;
 
-            if (!contract) {
-                await interaction.reply({ content: 'This contract is no longer valid.', ephemeral: true });
-                return;
-            }
+    if (customId.startsWith('accept_contract_')) {
+        const contractId = customId.replace('accept_contract_', '');
+        const contract = contracts.get(contractId);
 
-            if (Date.now() > contract.expiration) {
-                contracts.delete(contractId);
-                await interaction.reply({ content: 'This contract has expired.', ephemeral: true });
-                return;
-            }
+        if (contract && contract.userId === user.id) {
+            try {
+                await interaction.reply({ content: 'Contract accepted!', ephemeral: true });
 
-            const guildMember = interaction.guild.members.cache.get(contract.userId);
-            const teamRole = interaction.guild.roles.cache.get(contract.roleId);
-
-            if (guildMember && teamRole) {
-                await guildMember.roles.add(teamRole);
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Contract Accepted')
-                    .setColor('#00ff00')
-                    .setDescription(`Contract with ID ${contractId} has been accepted.`);
-
+                // Notify the channel about the accepted contract
                 const channel = client.channels.cache.get(process.env.CONTRACT_CHANNEL_ID);
-                if (channel) {
-                    await channel.send({ embeds: [embed] });
-                }
+                const contractRole = interaction.guild.roles.cache.get(contract.roleId);
+                const embed = new EmbedBuilder()
+                    .setColor(contractRole ? contractRole.color : '#0099ff')
+                    .setTitle(`[VEF] Contract Accepted`)
+                    .addFields(
+                        { name: 'Team', value: teamRoles[contract.roleId], inline: true },
+                        { name: 'Contractor', value: interaction.user.tag, inline: true },
+                        { name: 'Signee', value: user.tag, inline: true },
+                        { name: 'Role', value: contract.roleId, inline: true },
+                        { name: 'Contract ID', value: contractId, inline: true }
+                    )
+                    .setFooter({ text: 'Contract System', iconURL: 'https://i.imgur.com/0tZwpyf.png' })
+                    .setTimestamp();
 
+                await channel.send({ embeds: [embed] });
                 contracts.delete(contractId);
-                await interaction.update({ content: '✅ Contract accepted!', components: [] });
-            } else {
-                await interaction.reply({ content: 'Failed to process contract acceptance.', ephemeral: true });
+            } catch (err) {
+                console.error('Error processing contract acceptance:', err);
             }
+        } else {
+            await interaction.reply({ content: 'Invalid contract or user.', ephemeral: true });
         }
     }
 });
 
-// Login to Discord
 client.login(process.env.BOT_TOKEN);
