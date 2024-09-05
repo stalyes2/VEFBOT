@@ -151,121 +151,58 @@ client.once('ready', () => {
 
 // Handle interactions
 client.on('interactionCreate', async interaction => {
-    if (interaction.type !== InteractionType.ApplicationCommand) return;
+    if (interaction.type !== InteractionType.ApplicationCommand && !interaction.isButton()) return;
 
     const { commandName, options, member } = interaction;
 
     try {
-        if (!member) {
-            await interaction.reply({ content: 'Unable to fetch member data.', ephemeral: true });
-            return;
-        }
-
-        const hasManagerRole = member.roles.cache.has(process.env.MANAGER_ROLE_ID);
-
-        if (commandName === 'offer') {
-            if (!hasManagerRole) {
-                await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
-                return;
-            }
-
-            const teamRole = member.roles.cache.find(role => Object.keys(teamRoles).includes(role.id));
-            if (!teamRole) {
-                await interaction.reply({ content: 'You must have a valid Team role to use this command.', ephemeral: true });
-                return;
-            }
-
-            const user = options.getUser('user');
-            const role = options.getString('role');
-            const position = options.getString('position');
-            const contractId = Math.floor(Math.random() * 1000000).toString();
-
-            const roleToSign = interaction.guild.roles.cache.get(role);
-            const rosterSize = roleToSign ? roleToSign.members.size : 0;
-
-            const embed = new EmbedBuilder()
-                .setColor(roleToSign ? roleToSign.color : '#0099ff')
-                .setTitle(`[VEF] Contract Offer`)
-                .setThumbnail('https://i.imgur.com/0tZwpyf.png')
-                .addFields(
-                    { name: 'Team', value: teamRoles[teamRole.id], inline: true },
-                    { name: 'Contractor', value: member.user.tag, inline: true },
-                    { name: 'Signee', value: user.tag, inline: true },
-                    { name: 'Role', value: role, inline: true },
-                    { name: 'Position', value: position, inline: true },
-                    { name: 'Contract ID', value: contractId, inline: true },
-                    { name: 'Coach', value: `<@${interaction.user.id}>`, inline: true },
-                    { name: 'Roster Size', value: rosterSize.toString(), inline: true }
-                )
-                .setFooter({ text: 'Contract System', iconURL: 'https://i.imgur.com/0tZwpyf.png' })
-                .setTimestamp();
-
-            const acceptButton = new ButtonBuilder()
-                .setCustomId(`accept_contract_${contractId}`)
-                .setLabel('✅ Accept')
-                .setStyle(ButtonStyle.Success);
-
-            const row = new ActionRowBuilder().addComponents(acceptButton);
-
-            await interaction.deferReply({ ephemeral: true });
-
-            try {
-                await user.send({ embeds: [embed], components: [row] });
-
-                // Store the contract
-                contracts.set(contractId, {
-                    userId: user.id,
-                    roleId: role,
-                    expiration: Date.now() + 10 * 60 * 60 * 1000 // 10 hours from now
-                });
-
-                await interaction.editReply({ content: `Contract offer sent to ${user.tag}.` });
-            } catch (err) {
-                console.error('Error sending contract offer:', err);
-                await interaction.editReply({ content: 'Failed to send the contract offer. The user may have privacy settings preventing direct messages.' });
-            }
-        } else if (commandName === 'release') {
-            if (!hasManagerRole) {
+        if (commandName === 'release') {
+            if (!member.roles.cache.some(role => role.id === process.env.MANAGER_ROLE_ID)) {
                 await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
                 return;
             }
 
             const user = options.getUser('user');
-            const member = interaction.guild.members.cache.get(user.id);
-            const teamRole = member.roles.cache.find(role => Object.keys(teamRoles).includes(role.id));
+            const memberToRelease = interaction.guild.members.cache.get(user.id);
 
-            if (teamRole) {
-                await member.roles.remove(teamRole);
-                await interaction.reply({ content: `${user.tag} has been released from their team.` });
+            if (memberToRelease) {
+                const roleToRemove = Object.keys(teamRoles).find(roleId => memberToRelease.roles.cache.has(roleId));
+
+                if (roleToRemove) {
+                    await memberToRelease.roles.remove(roleToRemove);
+                    await interaction.reply({ content: `${user.tag} has been released from their team.` });
+                } else {
+                    await interaction.reply({ content: `${user.tag} does not have a team role.` });
+                }
             } else {
-                await interaction.reply({ content: `${user.tag} does not have a team role.` });
+                await interaction.reply({ content: 'User not found.' });
             }
         } else if (commandName === 'promote') {
-            if (!hasManagerRole) {
+            if (!member.roles.cache.some(role => role.id === process.env.MANAGER_ROLE_ID)) {
                 await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
                 return;
             }
 
             const user = options.getUser('user');
-            const member = interaction.guild.members.cache.get(user.id);
+            const memberToPromote = interaction.guild.members.cache.get(user.id);
 
-            if (member) {
-                await member.roles.add(process.env.ASSISTANT_MANAGER_ROLE_ID);
+            if (memberToPromote) {
+                await memberToPromote.roles.add(process.env.ASSISTANT_MANAGER_ROLE_ID);
                 await interaction.reply({ content: `${user.tag} has been promoted to Assistant Manager.` });
             } else {
                 await interaction.reply({ content: 'User not found.' });
             }
         } else if (commandName === 'demote') {
-            if (!hasManagerRole) {
+            if (!member.roles.cache.some(role => role.id === process.env.MANAGER_ROLE_ID)) {
                 await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
                 return;
             }
 
             const user = options.getUser('user');
-            const member = interaction.guild.members.cache.get(user.id);
+            const memberToDemote = interaction.guild.members.cache.get(user.id);
 
-            if (member) {
-                await member.roles.remove(process.env.ASSISTANT_MANAGER_ROLE_ID);
+            if (memberToDemote) {
+                await memberToDemote.roles.remove(process.env.ASSISTANT_MANAGER_ROLE_ID);
                 await interaction.reply({ content: `${user.tag} has been demoted from Assistant Manager.` });
             } else {
                 await interaction.reply({ content: 'User not found.' });
@@ -288,58 +225,69 @@ client.on('interactionCreate', async interaction => {
                 await interaction.reply({ content: 'Role not found.' });
             }
         } else if (commandName === 'say') {
-            if (!interaction.member.permissions.has('ADMINISTRATOR')) {
+            if (!member.permissions.has('ADMINISTRATOR')) {
                 await interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
                 return;
             }
 
             const text = options.getString('text');
             await interaction.reply({ content: text });
-        }
-    } catch (err) {
-        console.error('Error handling interaction:', err);
-        await interaction.reply({ content: 'An error occurred while processing your command.', ephemeral: true });
-    }
-});
-
-// Handle button interactions
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isButton()) return;
-
-    const { customId, user } = interaction;
-
-    if (customId.startsWith('accept_contract_')) {
-        const contractId = customId.replace('accept_contract_', '');
-        const contract = contracts.get(contractId);
-
-        if (contract && contract.userId === user.id) {
-            try {
-                await interaction.reply({ content: 'Contract accepted!', ephemeral: true });
-
-                // Notify the channel about the accepted contract
-                const channel = client.channels.cache.get(process.env.CONTRACT_CHANNEL_ID);
-                const contractRole = interaction.guild.roles.cache.get(contract.roleId);
-                const embed = new EmbedBuilder()
-                    .setColor(contractRole ? contractRole.color : '#0099ff')
-                    .setTitle(`[VEF] Contract Accepted`)
-                    .addFields(
-                        { name: 'Team', value: teamRoles[contract.roleId], inline: true },
-                        { name: 'Contractor', value: interaction.user.tag, inline: true },
-                        { name: 'Signee', value: user.tag, inline: true },
-                        { name: 'Role', value: contract.roleId, inline: true },
-                        { name: 'Contract ID', value: contractId, inline: true }
-                    )
-                    .setFooter({ text: 'Contract System', iconURL: 'https://i.imgur.com/0tZwpyf.png' })
-                    .setTimestamp();
-
-                await channel.send({ embeds: [embed] });
-                contracts.delete(contractId);
-            } catch (err) {
-                console.error('Error processing contract acceptance:', err);
+        } else if (commandName === 'offer') {
+            if (!member.roles.cache.some(role => role.id === process.env.MANAGER_ROLE_ID)) {
+                await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
+                return;
             }
-        } else {
-            await interaction.reply({ content: 'Invalid contract or user.', ephemeral: true });
+
+            const user = options.getUser('user');
+            const role = options.getString('role');
+            const position = options.getString('position');
+            const contractId = Math.random().toString(36).substr(2, 9); // Generate a random contract ID
+
+            const embed = new EmbedBuilder()
+                .setTitle('Contract Offer')
+                .setDescription(`You have been offered a contract by **${interaction.user.tag}**.`)
+                .addField('Role', role)
+                .addField('Position', position)
+                .addField('Contract ID', contractId)
+                .setColor('#0099ff')
+                .setFooter({ text: 'Contract System', iconURL: 'https://i.imgur.com/0tZwpyf.png' });
+
+            const acceptButton = new ButtonBuilder()
+                .setCustomId(`accept_${contractId}`)
+                .setLabel('Accept')
+                .setStyle(ButtonStyle.Success);
+
+            const row = new ActionRowBuilder().addComponents(acceptButton);
+
+            const userDM = await user.createDM();
+            await userDM.send({ embeds: [embed], components: [row] });
+
+            await interaction.reply({ content: `Contract offer sent to ${user.tag}.` });
+        } else if (interaction.isButton()) {
+            const [action, contractId] = interaction.customId.split('_');
+            const contract = contracts.get(contractId);
+
+            if (action === 'accept' && contract) {
+                contracts.delete(contractId);
+                const user = client.users.cache.get(contract.userId);
+                const embed = new EmbedBuilder()
+                    .setTitle('Contract Accepted')
+                    .setDescription(`Your contract offer has been accepted by **${user.tag}**.`)
+                    .addField('Role', contract.role)
+                    .addField('Position', contract.position)
+                    .addField('Contract ID', contractId)
+                    .setColor('#0099ff')
+                    .setFooter({ text: 'Contract System', iconURL: 'https://i.imgur.com/0tZwpyf.png' });
+
+                await interaction.reply({ content: 'Contract accepted.', ephemeral: true });
+                await client.channels.cache.get(process.env.CONTRACT_CHANNEL_ID).send({ embeds: [embed] });
+            } else {
+                await interaction.reply({ content: 'Invalid contract or action.', ephemeral: true });
+            }
         }
+    } catch (error) {
+        console.error('Error handling interaction:', error);
+        await interaction.reply({ content: 'An error occurred while processing your request.', ephemeral: true });
     }
 });
 
