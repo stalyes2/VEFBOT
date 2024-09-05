@@ -154,7 +154,6 @@ client.on('interactionCreate', async interaction => {
         }
 
         const hasManagerRole = member.roles.cache.has(process.env.MANAGER_ROLE_ID);
-
         if (commandName === 'offer') {
             if (!hasManagerRole) {
                 await interaction.reply({ content: 'You must have the Manager role to use this command.', ephemeral: true });
@@ -344,9 +343,10 @@ client.on('interactionCreate', async interaction => {
         }
     } catch (error) {
         console.error('Error handling command:', error);
-        await interaction.reply({ content: 'There was an error executing this command.', ephemeral: true });
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: 'There was an error executing this command.', ephemeral: true });
+        }
     }
 });
-
 // Log in the bot
 client.login(process.env.BOT_TOKEN);
