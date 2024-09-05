@@ -246,9 +246,11 @@ client.on('interactionCreate', async interaction => {
             const embed = new EmbedBuilder()
                 .setTitle('Contract Offer')
                 .setDescription(`You have been offered a contract by **${interaction.user.tag}**.`)
-                .addField('Role', role)
-                .addField('Position', position)
-                .addField('Contract ID', contractId)
+                .addFields([
+                    { name: 'Role', value: role },
+                    { name: 'Position', value: position },
+                    { name: 'Contract ID', value: contractId }
+                ])
                 .setColor('#0099ff')
                 .setFooter({ text: 'Contract System', iconURL: 'https://i.imgur.com/0tZwpyf.png' });
 
@@ -273,9 +275,11 @@ client.on('interactionCreate', async interaction => {
                 const embed = new EmbedBuilder()
                     .setTitle('Contract Accepted')
                     .setDescription(`Your contract offer has been accepted by **${user.tag}**.`)
-                    .addField('Role', contract.role)
-                    .addField('Position', contract.position)
-                    .addField('Contract ID', contractId)
+                    .addFields([
+                        { name: 'Role', value: contract.role },
+                        { name: 'Position', value: contract.position },
+                        { name: 'Contract ID', value: contractId }
+                    ])
                     .setColor('#0099ff')
                     .setFooter({ text: 'Contract System', iconURL: 'https://i.imgur.com/0tZwpyf.png' });
 
