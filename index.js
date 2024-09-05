@@ -219,10 +219,10 @@ client.on('interactionCreate', async interaction => {
                     expiration: Date.now() + 10 * 60 * 60 * 1000 // 10 hours from now
                 });
 
-                await interaction.editReply({ content: `Contract offer sent to ${user.tag}.`, ephemeral: true });
+                await interaction.editReply({ content: `Contract offer sent to ${user.tag}.` });
             } catch (err) {
                 console.error('Error sending contract offer:', err);
-                await interaction.editReply({ content: 'Failed to send the contract offer. The user may have privacy settings preventing direct messages.', ephemeral: true });
+                await interaction.editReply({ content: 'Failed to send the contract offer. The user may have privacy settings preventing direct messages.' });
             }
         } else if (commandName === 'release') {
             if (!hasManagerRole) {
